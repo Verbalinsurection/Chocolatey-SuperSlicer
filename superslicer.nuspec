@@ -7,6 +7,7 @@
     <authors>SuperMerill</authors>
 	<owners>Verbalinsurection</owners>
     <projectUrl>https://github.com/supermerill/SuperSlicer</projectUrl>
+    <packageSourceUrl>https://github.com/Verbalinsurection/Chocolatey-SuperSlicer</packageSourceUrl>
 	<licenseUrl>https://github.com/supermerill/SuperSlicer/blob/master/LICENSE</licenseUrl>
 	<requireLicenseAcceptance>true</requireLicenseAcceptance>
     <iconUrl>https://rawcdn.githack.com/supermerill/SuperSlicer/master/resources/icons/SuperSlicer.png</iconUrl>
@@ -78,4 +79,7 @@ Other major features are:
     <projectSourceUrl>https://github.com/supermerill/SuperSlicer</projectSourceUrl>
     <bugTrackerUrl>https://github.com/supermerill/SuperSlicer/issues</bugTrackerUrl>
   </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
 </package>
