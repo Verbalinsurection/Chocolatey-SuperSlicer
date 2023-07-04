@@ -6,13 +6,16 @@ param (
   [Alias('np')]
     [switch]$noPrompt = $false,
   [Alias('v')]
-    [string]$fversion = [string]::Empty
+    [string]$fversion = [string]::Empty,
+  [Alias('beta')]
+    [switch]$preRelease = $false
 )
 if ($Debug) { $DebugPreference = 'Continue' }
 
 function getNormVerion {
   param (
-    [string]$version
+    [string]$version,
+    [bool]$preRelease
   )
   if ($version.length -lt 3) {
     $nver = [Version]::new($version, 0, 0, 0)
@@ -22,7 +25,12 @@ function getNormVerion {
     if($nver.Build -eq -1) {$nver = [Version]::new($nver.Major, $nver.Minor, 0, 0)}
     if($nver.Revision -eq -1) {$nver = [Version]::new($nver.Major, $nver.Minor, $nver.Build, 0)}
   }
-  return "$($nver.Major).$($nver.Minor).$($nver.Build).$($nver.Revision)"
+  $ver = "$($nver.Major).$($nver.Minor).$($nver.Build).$($nver.Revision)"
+  if(-not $preRelease) {
+    return $ver
+  } else {
+    return "$ver-beta"
+  }
 }
 
 function ReplaceInFile {
@@ -42,13 +50,15 @@ function ReplaceInFile {
 
 function GetGithubInfos {
   param (
-    [string]$repo
+    [string]$repo,
+    [bool]$preRelease
   )
 
   if ($fversion -eq [string]::Empty) {
     Write-Debug "Get Github infos: https://api.github.com/repos/$repo/releases?per_page=5"
     $releasePage = (Invoke-WebRequest "https://api.github.com/repos/$repo/releases?per_page=5" | ConvertFrom-Json)
-    $releaseFiltered = ($releasePage | Select-Object tag_name, prerelease, html_url, assets | Where-Object {$_.prerelease -match "False"})[0]
+    $matchPrerelease = if ($preRelease) { "True" } else { "False" }
+    $releaseFiltered = ($releasePage | Select-Object tag_name, prerelease, html_url, assets | Where-Object {$_.prerelease -match $matchPrerelease})[0]
   } else {
     Write-Debug "Get Github infos: https://api.github.com/repos/$repo/releases for version $fversion"
     $releasePage = (Invoke-WebRequest "https://api.github.com/repos/$repo/releases" | ConvertFrom-Json)
@@ -63,21 +73,30 @@ function GetGithubInfos {
 
   $FileHash64 = Get-FileHash ("tools/$($winAsset64.name)")
   Write-Debug "  FileHash x86_64: $($FileHash64.Hash)"
+  $isPrerelease = $releaseFiltered.prerelease -like "True"
+  Write-Debug "  IsPrerelase: $isPrerelease"
   return @{
-    Version     = getNormVerion $releaseFiltered.tag_name
-    ReleaseUrl  = $releaseFiltered.html_url
-    URL64       = $winAsset64.browser_download_url
-    SHA64       = $FileHash64.Hash
+    Version      = getNormVerion $releaseFiltered.tag_name -preRelease $isPrerelease
+    ReleaseUrl   = $releaseFiltered.html_url
+    URL64        = $winAsset64.browser_download_url
+    SHA64        = $FileHash64.Hash
+    IsPrerelease = $isPrerelease
   }
 }
 
 function GetActual {
   param (
-    [string]$packageId
+    [string]$packageId,
+    [bool]$preRelease
   )
 
   Write-Debug "Get Chocolatey infos: $packageId"
-  $chocoVersion = choco search $packageId --by-id-only --exact --limit-output
+  $chocoSearch = "choco search $packageId --by-id-only --exact --limit-output"
+  if($preRelease) {
+    $chocoSearch += " --pre"
+  }
+  $chocoVersion = Invoke-Expression $chocoSearch
+
   if(!$chocoVersion) {
     Write-Error "Unable to find package on Chocolatey"
     return '0.0.0.0'
@@ -130,8 +149,8 @@ $githubRepo         = 'supermerill/SuperSlicer'
 $filesToUpdate      = 'superslicer.nuspec', 'tools/VERIFICATION.txt'
 
 ## Get package and web version ##
-$latestRelease = GetGithubInfos $githubRepo
-$actualVersion = GetActual $packageId
+$latestRelease = GetGithubInfos $githubRepo -preRelease $preRelease
+$actualVersion = GetActual $packageId -preRelease $latestRelease.IsPrerelease
 Write-Host "Chocolatey version  : $actualVersion"
 Write-Host "Github repo version : $($latestRelease.Version)"
 
