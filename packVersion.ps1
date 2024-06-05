@@ -64,6 +64,7 @@ function GetGithubInfos {
     $releasePage = (Invoke-WebRequest "https://api.github.com/repos/$repo/releases" | ConvertFrom-Json)
     $releaseFiltered = ($releasePage | Select-Object tag_name, prerelease, html_url, assets | Where-Object {$_.tag_name -match $fversion})[0]
   }
+  Write-Debug $releaseFiltered
   $winAsset64 = $releaseFiltered.assets | Select-Object id, name, browser_download_url | Where-Object {$_.name -match "win64"}
 
   Write-Debug "  Find asset x86_64: $($winAsset64.name)"
@@ -193,3 +194,12 @@ choco pack
 
 ## Restore files
 RestoreFiles $backupedFiles
+
+## Push choco package ##
+$confirmation = Read-Host "Push package [Y/n]?"
+$confirmation = ('y',$confirmation)[[bool]$confirmation]
+if($confirmation -eq 'n') {exit}
+$packFileName = $packageId + '.' + $latestRelease.Version + '.nupkg'
+choco push $($packFileName) --source https://push.chocolatey.org/
+
+Read-Host "Finished"
