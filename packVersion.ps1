@@ -65,7 +65,7 @@ function GetGithubInfos {
     $releaseFiltered = ($releasePage | Select-Object tag_name, prerelease, html_url, assets | Where-Object {$_.tag_name -match $fversion})[0]
   }
   Write-Debug $releaseFiltered
-  $winAsset64 = $releaseFiltered.assets | Select-Object id, name, browser_download_url | Where-Object {$_.name -match "win64"}
+  $winAsset64 = $releaseFiltered.assets | Select-Object id, name, browser_download_url | Where-Object {$_.name -match "win64.*\.zip"}
 
   Write-Debug "  Find asset x86_64: $($winAsset64.name)"
 
