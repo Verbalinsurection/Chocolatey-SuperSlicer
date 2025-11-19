@@ -17,10 +17,15 @@ function getNormVerion {
     [string]$version,
     [bool]$preRelease
   )
-  if ($version.length -lt 3) {
-    $nver = [Version]::new($version, 0, 0, 0)
+  $numericVersion = $version
+  if ($version -match '^([0-9.]+)') {
+    $numericVersion = $matches[1]
+  }
+  
+  if ($numericVersion.length -lt 3) {
+    $nver = [Version]::new($numericVersion, 0, 0, 0)
   } else {
-    $nver = [Version] $version
+    $nver = [Version] $numericVersion
     if($nver.Minor -eq -1) {$nver = [Version]::new($nver.Major, 0, 0, 0)}
     if($nver.Build -eq -1) {$nver = [Version]::new($nver.Major, $nver.Minor, 0, 0)}
     if($nver.Revision -eq -1) {$nver = [Version]::new($nver.Major, $nver.Minor, $nver.Build, 0)}
@@ -199,7 +204,14 @@ RestoreFiles $backupedFiles
 $confirmation = Read-Host "Push package [Y/n]?"
 $confirmation = ('y',$confirmation)[[bool]$confirmation]
 if($confirmation -eq 'n') {exit}
-$packFileName = $packageId + '.' + $latestRelease.Version + '.nupkg'
+
+$packVersion = $latestRelease.Version
+if ($packVersion -match '^(\d+\.\d+\.\d+)\.0(-.*)?$') {
+  $packVersion = $matches[1] + $matches[2]
+  Write-Debug "Version for filename : $packVersion"
+}
+$packFileName = "$packageId.$packVersion.nupkg"
+Write-Debug "Package name : $packFileName"
 choco push $($packFileName) --source https://push.chocolatey.org/
 
 Read-Host "Finished"
